@@ -1,0 +1,450 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Bakk1: Chroma Key ohne WebGL</title>
+<link href="../withWebGL/backgrounds.css" rel="stylesheet" type="text/css">
+
+</head>
+<script type="text/javascript" src="../withWebGL/lib/html5slider.js"></script>
+
+<body>
+	
+    <form>
+    	<p><input type="button" id="hideButton" value="Hide originals" onClick="hideOriginals()" /></p>
+    </form>
+    
+    <div id="originals" style="width:45%; float:left">
+    
+        <!--<input type="button" id="changeVideoButton" value="change originals" onClick="changeOriginals()" />-->
+    
+    <h2>Original Video mit Hintergrund und Alpha Matte</h2>
+        
+        <p>
+        <video width="50%" height="50%" id="greenScreenVideo" controls="controls" onended="this.currentTime = 0" loop><!-- currentTime for Firefox -->
+          <source src="../withWebGL/videos/lagerfeuer_720_480/lagerfeuer_720_480_30fps.webm" type='video/webm' />
+        </video>
+        </p>
+        
+        <p>
+        	<img src="../withWebGL/images/camin.jpg" id="bgImage" width="50%" height="50%" />
+        </p>   
+    
+    <p> <b id="videosDemands">Video-Vorgaben: 720x480, 30fps</b> </p>
+        <p> <b id="videoLength"></b> </p>
+        <p> <b id="numberOfFrames"></b> </p>
+        <h3>
+            <form>
+            <input type="range" value="0" id="frame_regulator" onChange="document.getElementById('frameButton').value =  'gehe zu Frame: ' + Number(this.value).toFixed(1)" /> 
+            <input type="button" id="frameButton" value="gehe zu Frame" onClick="showFrame()" />
+            
+            <p>
+                <select id="resSelector" onChange="changeResolution(this.value)">
+                    <option value="720_480">720x480</option>
+                    <option value="480_320">480x320</option>
+                    <option value="360_240">360x240</option>
+                </select>
+                
+                <select id="fpsSelector" onChange="changeFrameRate(this.value)">
+                    <option value="30">30fps</option>
+                    <option value="24">24fps</option>
+                    <option value="15">15fps</option>
+                    <option value="10">10fps</option>
+                </select>
+            </p>
+            </form>
+        </h3>
+    </div>  
+    
+    <div style="width:45%; float:right; margin-right:8%">
+    	<form>
+    		<p><input type="button" value="export Composite-Image" onClick="exportCompImage()" /></p>
+            with Background<input type="checkbox" id="exportCompWithBg" />
+        </form>
+        <h2>Video mit Chroma-Key Technik</h2> 
+        <canvas id="canvas"></canvas>
+        <canvas id="helpCanvas" style="display:none"></canvas>
+        <h3>Regler für Rot, Grün und Blauanteile im Video</h3>
+        <table>
+        
+        <tr>
+        	<td style="width:70px">
+            <b id="frame_display">Frame: </b>
+            </td>
+            
+        	<td style="width:70px">
+            <b id="fps_display">fps: </b>
+            </td>
+            
+            <td>
+            <p><b id="red_regulator_display">Value: 0</b></p>
+            <input type="range" min="0" max="255" value="0" id="red_regulator" onChange="document.getElementById('red_regulator_display').innerHTML = 'Value: '+ this.value" />
+            </td>
+            
+            <td>
+            <p><b id="green_regulator_display">Value: 0</b></p>
+            <input type="range" min="0" max="255" value="0" id="green_regulator" onChange="document.getElementById('green_regulator_display').innerHTML = 'Value: '+ this.value" />
+            </td>
+            
+            <td>
+            <p><b id="blue_regulator_display">Value: 0</b></p>
+            <input type="range" min="0" max="255" value="0" id="blue_regulator" onChange="document.getElementById('blue_regulator_display').innerHTML = 'Value: '+ this.value" />
+            </td>
+        </tr>
+        <tr>
+            <td style="width:100px">
+            <p><b>Measurement of fps(when activated frame and fps counter stop)</b></p>
+            <input type="button" id="measureButton" value="Starte Messung" onClick="startMeasurement()" />
+            </td>
+            
+            <td>
+            <p>Clip White</p>
+            <p><b id="clip_white_regulator_display">Value: 1</b></p>
+            <input type="range" min="0" max="255" value="255" step="1" id="clip_white_regulator" onChange="document.getElementById('clip_white_regulator_display').innerHTML = 'Value: '+Number(this.value/255).toFixed(1)" />
+            </td>
+            
+            <td>
+            <p>Clip Black</p>
+            <p><b id="clip_black_regulator_display">Value: 0</b></p>
+            <input type="range" min="0" max="255" value="255" step="1" id="clip_black_regulator"  onChange="document.getElementById('clip_black_regulator_display').innerHTML = 'Value: '+Number(this.value/255).toFixed(1)" />
+            </td>
+            
+        </tr>
+        
+        </table>
+    </div>
+    
+    <div style="height:200px; position:fixed; bottom:0px; background-color:rgb(189, 174, 69); font-size:9px; padding:10px; border:1px solid black">
+    	<p><input type="button" style=" background-image:url(../withWebGL/images/kreuz.png); background-size:cover" value="" onClick="document.getElementsByTagName('div')[2].style.display = 'none'" /></p>
+    	<h1><b>Ohne WebGL</b></h1>
+    	<h1>Diese Seite wurde nur für Testzwecke und für Vergleichsmessungen mit und ohne Verwendung von WebGL für den Mozilla Firefox erstellt. Beim Ausführen der Inhalte der Seite kann es daher bei anderen Browser zu Fehlern kommen.</h1>
+    	<h2><a href="../withWebGL/">Zur Messung mit WebGL</a></h2>
+        <h2><a href="http://get.webgl.org/">Hier kannst du prüfen, ob dein Browser WebGL unterstützt</a></h2>
+    </div>
+    
+</body>
+
+    <script type="text/javascript">
+		
+		Array.prototype.emptyArray = function(){
+			
+			while( this.length != 0 )
+				this.pop();
+		}
+		
+		var canvas = document.getElementById('canvas');
+		canvas.className = "westernBG";
+		var helpCanvas = document.getElementById('helpCanvas'); // canvas that is used to make pixel operations on and copying them finaly on the  
+		
+		var greenScreenVideo = document.getElementById('greenScreenVideo');
+		
+		greenScreenVideo.addEventListener('canplaythrough', setUpChromaApp, false); 
+			
+		var bgImage = document.getElementById('bgImage');
+		var videoLength = document.getElementById('videoLength');
+		var videosDemands = document.getElementById('videosDemands');
+		var numberOfFrames = document.getElementById('numberOfFrames');
+		var exportCompWithBg = document.getElementById('exportCompWithBg');
+		var _numberOfFrames;
+		
+		var resSelector = document.getElementById('resSelector');
+		var fpsSelector = document.getElementById('fpsSelector');
+		var frame_regulator = document.getElementById('frame_regulator');
+		var red_regulator = document.getElementById('red_regulator');
+		var green_regulator = document.getElementById('green_regulator');
+		var blue_regulator = document.getElementById('blue_regulator');
+		
+		var fps_display = document.getElementById('fps_display');
+		var frame_display = document.getElementById('frame_display');
+		
+		var clip_white_regulator = document.getElementById('clip_white_regulator');
+		var clip_black_regulator = document.getElementById('clip_black_regulator');
+		var weight_regulator = document.getElementById('weight_regulator');
+		var balance_regulator = document.getElementById('balance_regulator');
+		
+		var frameButtonPressed = false;
+		//var frameButton = document.getElementById('frameButton');
+		var orignals = document.getElementById('originals');
+		var hideButton = document.getElementById('hideButton');
+		var frameButton = document.getElementById('frameButton');
+		var measureButton = document.getElementById('measureButton');
+		
+		var isMeasuring = false;
+		var resultsArray = [];
+		
+		var demandedFPS = 30;
+		
+		var frames = 0;
+		var oldTime = 0;
+		var newTime = new Date().getTime();
+		
+		
+		var drawMethod = function(){ 
+					
+			renderNewFrame();
+			
+			newTime = new Date().getTime();
+			
+			if(!isMeasuring){ // must be switch off in order not to have a too big impact on the measurement
+			
+				resultsArray.emptyArray();
+				frame_display.innerHTML = "Frame: "+((greenScreenVideo.currentTime/greenScreenVideo.duration)*(greenScreenVideo.duration*demandedFPS)).toFixed(1);
+			}
+			
+			if( newTime - oldTime >= 1000 ){ 
+				
+				if(isMeasuring)
+					resultsArray.push( { videoTime : greenScreenVideo.currentTime, fps : frames } );
+				else
+					fps_display.innerHTML = "fps: " + frames;
+					
+				frames = 0;
+				oldTime = newTime;
+			}
+			
+			frames++;
+			
+		}	
+		
+		
+		function setUpChromaApp() {
+			
+			setTimeout(listVideoCharacteristics, 1000);
+			
+			canvas.width = greenScreenVideo.videoWidth;
+			canvas.height = greenScreenVideo.videoHeight;
+			helpCanvas.width = canvas.width;
+			helpCanvas.height = canvas.height;
+			
+			var stopVideo;
+			
+			frames = 0;
+		
+			oldTime = 0;
+			newTime = Number(greenScreenVideo.currentTime);
+			
+			
+			
+			greenScreenVideo.addEventListener("play", function() {
+				
+				
+				var anim = 	window.requestAnimationFrame       ||
+							window.webkitRequestAnimationFrame ||
+							window.mozRequestAnimationFrame    || // when firefox is used window.mozRequestAnimationFrame is executed
+							window.oRequestAnimationFrame      ||
+							window.msRequestAnimationFrame;
+							
+				stopVideo = false;
+				
+				
+				var timeMethod = function(){
+					
+				drawMethod(); // actual method
+				
+				if(!stopVideo) 
+					anim(timeMethod); // not recursive!!!, kind of event listener, knows when it's time to render a new frame,  
+						
+				}
+				
+				
+				anim(timeMethod); // starts alpha Method one time after pressing play Button
+				
+			});
+			
+			
+			greenScreenVideo.addEventListener("pause", function(){
+				stopVideo = true;
+			});
+		}
+		
+		
+		
+		function renderNewFrame(){
+			
+			helpCanvas.width = helpCanvas.width;
+					
+			helpCanvas.getContext('2d').drawImage(greenScreenVideo, 0, 0, helpCanvas.width, helpCanvas.height); 
+			
+			var frame = helpCanvas.getContext('2d').getImageData(0, 0, helpCanvas.width, helpCanvas.height); 
+			var frameBufferLength = frame.data.length / 4;
+			
+			for (var i = 0; i < frameBufferLength; i++) {
+			  
+			  var r = frame.data[i * 4 + 0];
+			  var g = frame.data[i * 4 + 1];
+			  var b = frame.data[i * 4 + 2];
+			  
+			  if( r <= red_regulator.value && g >= green_regulator.value && b <= blue_regulator.value ) // Programmfunktion(alpha compositing) f(r, g, b) -> a
+				frame.data[i * 4 + 3] = clip_white_regulator.value - clip_black_regulator.value; // clipWhite value should always be higher than clipBlack value
+			}
+			
+			canvas.getContext('2d').putImageData(frame, 0, 0);
+			
+		}
+		
+		
+		function showResults(){
+			
+			var output = "";
+			for(var i=0; i < resultsArray.length; i++)
+				output += "Video Time: " + resultsArray[i].videoTime + " fps: " + resultsArray[i].fps + "\n";
+			
+			alert( output == "" ? "Es gibt noch keine Messergebnisse" : output );
+			resultsArray.emptyArray();
+		}
+		
+		
+		function startMeasurement(){
+			
+			if(	measureButton.value == 'Starte Messung' ){
+				isMeasuring = true;
+				measureButton.value = 'Beende Messung'
+			}	
+			else{
+				isMeasuring = false;
+				measureButton.value = 'Starte Messung'
+				showResults();
+			}
+			
+		} 
+		
+		function changeVideoDemands(res, fps){
+			
+			videosDemands.innerHTML = 'Video-Vorgaben: ' + res + ', '+ fps + 'fps';
+		}
+		
+		
+		function hideOriginals(){
+			
+			if( orignals.style.display == "inline" ){
+				
+				orignals.style.display = "none";
+				hideButton.value = "Show originals";
+			}
+			else{
+				orignals.style.display = "inline";
+				hideButton.value = "Hide originals";
+			}
+		}
+		
+		
+		function showFrame(){
+			
+			if(!greenScreenVideo.paused)
+				greenScreenVideo.pause();
+			
+			var frameToGo = frame_regulator.value;
+			if(frame_regulator.value > 0){
+				frameToGo -= (greenScreenVideo.duration*demandedFPS)/100; // one step back
+				greenScreenVideo.currentTime = (greenScreenVideo.duration / _numberOfFrames) * frameToGo;
+			}
+			else
+				greenScreenVideo.currentTime = 0;
+			
+			
+			if( !frameButtonPressed ){
+				frameButton.value = 'Aktualsiere Canvas';
+				frameButtonPressed = true;
+			}
+			else{
+				frameButton.value = 'gehe zu Frame';
+				frameButtonPressed = false;
+			}
+			
+			renderNewFrame();	
+		}
+		
+		
+		function listVideoCharacteristics(){
+			
+			videoLength.innerHTML = 'Videodauer: ' + greenScreenVideo.duration + " Sekunden";
+			numberOfFrames.innerHTML = 'Anzahl der Frames im Video: ' + Number(greenScreenVideo.duration*demandedFPS).toFixed(1);
+			_numberOfFrames = greenScreenVideo.duration*demandedFPS;
+			
+			frame_regulator.max = (greenScreenVideo.duration*demandedFPS);
+			frame_regulator.min = frame_regulator.value = 0;
+			frame_regulator.step = (greenScreenVideo.duration*demandedFPS)/100; // user can't step in frames, but in more than one frame
+		} 
+		
+		function resetVideos(){
+			greenScreenVideo.pause();
+			//greenScreenVideo.currentTime = 0;// commeted out no idea why, on the multimediaserver-server it worked
+			isMeasuring = false;
+			resultsArray = [];	
+		}
+		
+		function changeResolution(res){
+			
+			resetVideos();
+			
+			changeVideoDemands( res.replace("_","x") , demandedFPS);
+			
+			if(demandedFPS == "30")
+				greenScreenVideo.src = '../withWebGL/videos/lagerfeuer_'+res+'/lagerfeuer_'+res+'_30fps.webm';
+				
+			else if(demandedFPS == "24")		
+				greenScreenVideo.src = '../withWebGL/videos/lagerfeuer_'+res+'/lagerfeuer_'+res+'_24fps.webm';
+				
+			else if(demandedFPS == "15")				
+				greenScreenVideo.src = '../withWebGL/videos/lagerfeuer_'+res+'/lagerfeuer_'+res+'_15fps.webm';
+				
+			else if(demandedFPS == "10" && bgImage.src.match(/camin.jpg/) )
+				greenScreenVideo.src = '../withWebGL/videos/lagerfeuer_'+res+'/lagerfeuer_'+res+'_10fps.webm';
+				
+			else		
+				greenScreenVideo.src = '../withWebGL/videos/visibility/waterfal_'+res+'_10.webm';
+				
+			
+		}
+		
+		function changeFrameRate(fps){
+			
+			resetVideos();
+			
+			demandedFPS = Number(fps);
+			
+			changeVideoDemands( greenScreenVideo.videoWidth +"x"+ greenScreenVideo.videoHeight , demandedFPS);
+			
+			if(greenScreenVideo.videoWidth*greenScreenVideo.videoHeight == 720*480)
+				greenScreenVideo.src = '../withWebGL/videos/lagerfeuer_720_480/lagerfeuer_720_480_'+fps+'fps.webm';
+				
+			
+			else if(greenScreenVideo.videoWidth*greenScreenVideo.videoHeight == 422*320)	
+				greenScreenVideo.src = '../withWebGL/videos/lagerfeuer_480_320/lagerfeuer_480_320_'+fps+'fps.webm';
+				
+			else if(greenScreenVideo.videoWidth*greenScreenVideo.videoHeight == 360*240)					
+				greenScreenVideo.src = '../withWebGL/videos/lagerfeuer_360_240/lagerfeuer_360_240_'+fps+'fps.webm';
+				
+		}
+		
+		function exportCompImage(){
+			
+			var tmpCanvas = document.createElement('canvas');
+			tmpCanvas.width = canvas.width;
+			tmpCanvas.height = canvas.height;
+			
+			var tmpImage = new Image();
+			
+			tmpImage.onload = function(){  // unfortunately seriously forced me to do a detour to get the Composite-Image without background 
+				
+				if( exportCompWithBg.checked ) 
+					tmpCanvas.getContext('2d').drawImage(bgImage, 0,0,canvas.width, canvas.height);
+					
+				tmpCanvas.getContext('2d').drawImage(tmpImage, 0,0,canvas.width, canvas.height);
+			
+				tmpCanvas.getContext('2d').fillStyle = "#ffffff";
+				tmpCanvas.getContext('2d').strokeStyle = "#000000";
+				tmpCanvas.getContext('2d').fillText("Resolution: "+ greenScreenVideo.videoWidth+"x"+greenScreenVideo.videoHeight, 10, 10);
+				tmpCanvas.getContext('2d').fillText("Frame: "+((greenScreenVideo.currentTime/greenScreenVideo.duration)*(greenScreenVideo.duration*demandedFPS)).toFixed(1), 10, 25);
+				tmpCanvas.getContext('2d').fillText("Frame per Second: "+demandedFPS, 10, 40);
+				
+				window.open(tmpCanvas.toDataURL("image/jpeg"), "Composite-Image", "left=0, top=0, width=" + tmpCanvas.width + ",height=" + tmpCanvas.height
+						+ ",toolbar=0, resizable=0");	
+			}
+			
+			tmpImage.src = canvas.toDataURL("image/png");	
+				
+		}
+		
+	</script>
+</html>

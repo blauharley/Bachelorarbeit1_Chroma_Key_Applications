@@ -1,0 +1,20 @@
+@charset "utf-8";
+/* CSS Document */
+
+body{
+		height:900px;	
+	}
+	
+.westernBG {
+	background-image: url(../withWebGL/images/camin.jpg);
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size:cover;
+}
+
+.waterfallBG {
+	background-image: url(../withWebGL/images/waterfall3.jpg);
+	background-repeat: no-repeat;
+	//background-position: center;
+	background-size:cover;
+}
