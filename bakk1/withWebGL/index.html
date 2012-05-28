@@ -21,7 +21,7 @@
         
         <p>
         <video width="50%" height="50%" id="greenScreenVideo" controls="controls" onended="this.currentTime = 0" loop><!-- currentTime for Firefox -->
-          <source src="videos/lagerfeuer_720_480/lagerfeuer_720_480_30fps.webm" type='video/webm' />
+          <source src="videos/lagerfeuer_1080_720/lagerfeuer_1080_720_30fps.webm" type='video/webm' />
         </video>
         </p>
         
@@ -29,7 +29,7 @@
         	<img src="images/camin.jpg" id="bgImage" width="50%" height="50%" />
         </p>   
     
-    <p> <b id="videosDemands">Video-Requirements: 720x480, 30fps</b> </p>
+    <p> <b id="videosDemands">Video-Requirements: 1080x720, 30fps</b> </p>
         <p> <b id="videoLength"></b> </p>
         <p> <b id="numberOfFrames"></b> </p>
         <h3>
@@ -39,6 +39,7 @@
             
             <p>
                 <select id="resSelector" onChange="changeResolution(this.value)">
+                	<option value="720_480">1080x720</option>
                     <option value="720_480">720x480</option>
                     <option value="480_320">480x320</option>
                     <option value="360_240">360x240</option>
@@ -47,7 +48,6 @@
                 <select id="fpsSelector" onChange="changeFrameRate(this.value)">
                     <option value="30">30fps</option>
                     <option value="24">24fps</option>
-                    <option value="15">15fps</option>
                     <option value="10">10fps</option>
                 </select>
             </p>
@@ -107,12 +107,6 @@
             <p>Clip Black</p>
             <p><b id="clip_black_regulator_display">Value: 0</b></p>
             <input type="range" min="0" max="1" value="0" step="0.1" id="clip_black_regulator"  onChange="document.getElementById('clip_black_regulator_display').innerHTML = 'Value: '+Number(this.value).toFixed(1); adjustPixels(this, 'green')" />
-            </td>
-            
-            <td>
-            <p>Weight</p>
-            <p><b id="weight_regulator_display">Value: 0</b></p>
-            <input type="range" min="0" max="1" value="1" step="0.1" id="weight_regulator" onChange="document.getElementById('weight_regulator_display').innerHTML = 'Value: '+Number(this.value).toFixed(1); adjustPixels(this, 'green')" />
             </td>
             
             <td>
@@ -185,6 +179,8 @@
 		var resultsArray = [];
 		var demandedFPS = 30;
 		
+		var frames = 0;
+		var startTime, endTime;
 		
 		function setUpChromaApp(){
 			
@@ -193,39 +189,28 @@
 			canvas.width = greenScreenVideo.videoWidth;
 			canvas.height = greenScreenVideo.videoHeight;
 			
-			var frames = 0;
-			var oldTime = 0;
-			var newTime = new Date().getTime();
+			frames = 0;
+			//var oldTime = 0;
+			//var newTime = new Date().getTime();
 			
 			adjustPixels( green_regulator, 'green' );
 			
 			seriously.go(function(){ // calls every time if a new frame has to be rendered
-				
-				newTime = new Date().getTime();
-				
-				if(!isMeasuring){ // must be switch off in order not to have a too big impact on the measurement
-				
-					resultsArray.emptyArray();
-					frame_display.innerHTML = "Frame: "+((greenScreenVideo.currentTime/greenScreenVideo.duration)*(greenScreenVideo.duration*demandedFPS)).toFixed(1);
-				}
-				
-				if( newTime - oldTime >= 1000 ){ 
-					
-					if(isMeasuring)
-						resultsArray.push( { videoTime : greenScreenVideo.currentTime, fps : frames } );
-					else
-						fps_display.innerHTML = "fps: " + frames;
-						
-					frames = 0;
-					oldTime = newTime;
-				}
 				
 				frames++;
 				
 			});
 		}
 		
+		greenScreenVideo.addEventListener("play", function() {
+			frames = 0;
+			startTime = new Date().getTime();	
+		});
 		
+		greenScreenVideo.addEventListener("pause", function(){
+			endTime = new Date().getTime();
+		});
+			
 		function adjustPixels(slider, type){
 			
 			var target = seriously.target(canvas);
@@ -233,7 +218,6 @@
 			chroma.clipWhite = clip_white_regulator.value;
 			chroma.clipBlack = clip_black_regulator.value;
 			chroma.balance = balance_regulator.value;
-			chroma.weight = weight_regulator.value;
 			
 			switch(type){
 				case 'ret':
@@ -255,27 +239,27 @@
 		
 		function showResults(){
 				
-			var output = "";
-			for(var i=0; i < resultsArray.length; i++)
-				output += "Video Time: " + resultsArray[i].videoTime + " fps: " + resultsArray[i].fps + "\n";
-			
-			alert( output == "" ? "Es gibt noch keine Messergebnisse" : output );
-			resultsArray.emptyArray();
+			if( startTime < endTime){
+				
+				var duration = (endTime - startTime) / 1000;
+				alert(frames / duration + "fps");
+				
+				measureButton.value = 'Starte Messung'
+			}
+			else
+				alert('Bitte das Video pausieren und dananch nochmal beende Messung klicken');
 		}
 		
 		
 		function startMeasurement(){
 				
 			if(	measureButton.value == 'Starte Messung' ){
-				isMeasuring = true;
+				
 				measureButton.value = 'Beende Messung'
 			}	
-			else{
-				isMeasuring = false;
-				measureButton.value = 'Starte Messung'
+			else
 				showResults();
-			}
-				
+			
 		} 
 		
 		function changeVideoDemands(res, fps){
@@ -367,7 +351,10 @@
 			
 			changeVideoDemands( greenScreenVideo.videoWidth +"x"+ greenScreenVideo.videoHeight , demandedFPS);
 			
-			if(greenScreenVideo.videoWidth*greenScreenVideo.videoHeight == 720*480)
+			if(greenScreenVideo.videoWidth*greenScreenVideo.videoHeight == 950*720)
+				greenScreenVideo.src = '../withWebGL/videos/lagerfeuer_1080_720/lagerfeuer_1080_720_'+fps+'fps.webm';
+				
+			else if(greenScreenVideo.videoWidth*greenScreenVideo.videoHeight == 720*480)
 				greenScreenVideo.src = '../withWebGL/videos/lagerfeuer_720_480/lagerfeuer_720_480_'+fps+'fps.webm';
 				
 			
